@@ -4,6 +4,15 @@ import csv from 'csvtojson'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import fs from 'fs'
+import printer from 'console-table-printer'
+import { table } from 'console'
+
+let axiosConfig = {
+    headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+        "Access-Control-Allow-Origin": "*",
+    }
+};
 
 
 const argv = yargs(hideBin(process.argv))
@@ -15,12 +24,15 @@ const argv = yargs(hideBin(process.argv))
             required: true
         })
     }, function (argv) {
-        getTrade(argv.filename, argv.verbose)
+        loadTrade(argv.filename, argv.verbose)
     })
     .command('list', 'List the available csv files', (args) => { },
         function (args) {
             list(args.verbose)
         })
+    .command('trades', 'Find trades', (args) => { }, function (args) {
+        trades(args.verbose)
+    })
     .option('verbose', {
         alias: 'v'
     })
@@ -28,15 +40,7 @@ const argv = yargs(hideBin(process.argv))
     .argv
 
 
-let axiosConfig = {
-    headers: {
-        'Content-Type': 'application/json;charset=UTF-8',
-        "Access-Control-Allow-Origin": "*",
-    }
-};
-
-
-async function getTrade(filename = 'test.csv', verbose = false) {
+async function loadTrade(filename = 'test.csv', verbose = false) {
     console.log(`Verbose: ${verbose}`)
     let trades
     try {
@@ -76,13 +80,20 @@ async function list(verbose = false) {
     })
 }
 
-/*
-    .options({
-      'f': {
-        alias: 'file',
-        demandOption: true,
-        default: '/etc/passwd',
-        describe: 'x marks the spot',
-        type: 'string'
-      }
-*/
+async function trades(verbose = false) {
+    try {
+        const results = await axios.get('http://localhost:8080/trade', axiosConfig)
+        // console.log(results.data)
+        const data = results.data.map((trade) => {
+            // trade.date = dateformat(trade.date, "dd/mm/yy")
+            // trade.expiry = dateformat(trade.expiry, "dd/mm/yy")
+            trade.date = trade.date.replace(/\T.+/, '')
+            trade.expiry = trade.expiry.replace(/\T.+/, '')
+            delete (trade._id)
+            delete (trade.__v)
+        })
+        table(results.data)
+    } catch (error) {
+        console.log(error.message)
+    }
+}
